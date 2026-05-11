@@ -1,15 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
-from decimal import Decimal
 
 from app.core.database import get_db
 from app.core.security import CurrentUser, get_current_user
-from app.services.rbac import require_platform_roles, get_org_roles
-from app.models.noir import Event, Organization, Venue, EventOccurrence, EventTier
+from app.services.rbac import require_platform_roles
+from app.services.noir import NoirService
 from app.schemas.noir import (
     EventDiscoveryOut, 
     EventDetailOut, 
@@ -20,8 +17,7 @@ from app.schemas.noir import (
     OrganizationCreate,
     OrganizationUpdate,
     VenueOut,
-    VenueCreate,
-    VenueUpdate
+    VenueCreate
 )
 
 router = APIRouter(prefix="/noir", tags=["Noir Core"])
@@ -31,6 +27,7 @@ async def test_db(db: AsyncSession = Depends(get_db)):
     """Test database connectivity and profiles table."""
     try:
         from app.models.profile import Profile
+        from sqlalchemy import select
         result = await db.execute(select(Profile).limit(1))
         profile = result.scalars().first()
         return {
@@ -55,50 +52,12 @@ async def list_events(
     db: AsyncSession = Depends(get_db)
 ):
     """Get a list of events with basic discovery info."""
-    # We want to get events with their primary occurrence, venue, and min price
-    stmt = select(Event).options(
-        selectinload(Event.occurrences).selectinload(EventOccurrence.venue),
-        selectinload(Event.occurrences).selectinload(EventOccurrence.tiers)
-    )
-    
-    if status:
-        stmt = stmt.where(Event.status == status)
-    if org_id:
-        stmt = stmt.where(Event.organizer_org_id == org_id)
-        
-    result = await db.execute(stmt)
-    events = result.scalars().all()
-    
-    # Map to schema manually or via attributes
-    out_events = []
-    for event in events:
-        out_ev = EventDiscoveryOut.model_validate(event)
-        
-        # Get primary occurrence (the earliest one)
-        if event.occurrences:
-            primary = sorted(event.occurrences, key=lambda x: x.start_time)[0]
-            out_ev.venue_name = primary.venue.name if primary.venue else None
-            out_ev.occurrence_date = primary.start_time
-            
-            # Get min price from tiers
-            if primary.tiers:
-                out_ev.min_price = min(t.price for t in primary.tiers)
-            else:
-                out_ev.min_price = Decimal("0.00") if event.is_free else None
-        
-        out_events.append(out_ev)
-        
-    return out_events
+    return await NoirService.list_events(db, status, org_id)
 
 @router.get("/events/{event_id}", response_model=EventDetailOut)
 async def get_event(event_id: UUID, db: AsyncSession = Depends(get_db)):
     """Get detailed information about a specific event."""
-    stmt = select(Event).where(Event.id == event_id)
-    result = await db.execute(stmt)
-    event = result.scalars().first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return event
+    return await NoirService.get_event(db, event_id)
 
 @router.post("/events", response_model=EventDetailOut, status_code=status.HTTP_201_CREATED)
 async def create_event(
@@ -107,18 +66,7 @@ async def create_event(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new event. Requires 'owner' or 'admin' role in the organization."""
-    roles = await get_org_roles(db, user.id)
-    if roles.get(str(payload.organizer_org_id)) not in ("owner", "admin"):
-        # Check platform admin fallback
-        from app.services.rbac import get_platform_role
-        if await get_platform_role(db, user.id) != "admin":
-            raise HTTPException(status_code=403, detail="Not authorized for this organization")
-    
-    new_event = Event(**payload.model_dump())
-    db.add(new_event)
-    await db.commit()
-    await db.refresh(new_event)
-    return new_event
+    return await NoirService.create_event(db, user.id, payload)
 
 @router.patch("/events/{event_id}", response_model=EventDetailOut)
 async def update_event(
@@ -128,24 +76,7 @@ async def update_event(
     db: AsyncSession = Depends(get_db)
 ):
     """Update an event. Requires 'owner' or 'admin' role in the organization."""
-    stmt = select(Event).where(Event.id == event_id)
-    result = await db.execute(stmt)
-    event = result.scalars().first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-        
-    roles = await get_org_roles(db, user.id)
-    if roles.get(str(event.organizer_org_id)) not in ("owner", "admin"):
-        from app.services.rbac import get_platform_role
-        if await get_platform_role(db, user.id) != "admin":
-            raise HTTPException(status_code=403, detail="Not authorized for this organization")
-
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(event, field, value)
-    
-    await db.commit()
-    await db.refresh(event)
-    return event
+    return await NoirService.update_event(db, user.id, event_id, payload)
 
 # ======================
 # Organizations
@@ -153,21 +84,12 @@ async def update_event(
 @router.get("/organizations", response_model=List[OrganizationOut])
 async def list_organizations(db: AsyncSession = Depends(get_db)):
     """List all active organizations."""
-    stmt = select(Organization).where(Organization.is_active == True)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    return await NoirService.list_organizations(db)
 
 @router.get("/organizations/{org_id}", response_model=OrganizationDetail)
 async def get_organization(org_id: UUID, db: AsyncSession = Depends(get_db)):
     """Get detailed info for an organization including its venues."""
-    stmt = select(Organization).where(Organization.id == org_id).options(
-        selectinload(Organization.venues)
-    )
-    result = await db.execute(stmt)
-    org = result.scalars().first()
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-    return org
+    return await NoirService.get_organization(db, org_id)
 
 @router.post("/organizations", response_model=OrganizationOut, status_code=status.HTTP_201_CREATED)
 async def create_organization(
@@ -176,11 +98,7 @@ async def create_organization(
     user: CurrentUser = Depends(require_platform_roles("admin"))
 ):
     """Create a new organization. Platform Admin only."""
-    new_org = Organization(**payload.model_dump())
-    db.add(new_org)
-    await db.commit()
-    await db.refresh(new_org)
-    return new_org
+    return await NoirService.create_organization(db, payload)
 
 @router.patch("/organizations/{org_id}", response_model=OrganizationOut)
 async def update_organization(
@@ -190,24 +108,7 @@ async def update_organization(
     user: CurrentUser = Depends(get_current_user)
 ):
     """Update an organization. Requires 'owner' or platform 'admin'."""
-    stmt = select(Organization).where(Organization.id == org_id)
-    result = await db.execute(stmt)
-    org = result.scalars().first()
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-        
-    roles = await get_org_roles(db, user.id)
-    if roles.get(str(org_id)) != "owner":
-        from app.services.rbac import get_platform_role
-        if await get_platform_role(db, user.id) != "admin":
-            raise HTTPException(status_code=403, detail="Only the organization owner can update details")
-
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(org, field, value)
-    
-    await db.commit()
-    await db.refresh(org)
-    return org
+    return await NoirService.update_organization(db, user.id, org_id, payload)
 
 # ======================
 # Venues
@@ -215,21 +116,12 @@ async def update_organization(
 @router.get("/venues", response_model=List[VenueOut])
 async def list_venues(city: Optional[str] = Query(None), db: AsyncSession = Depends(get_db)):
     """List active venues, optionally filtered by city."""
-    stmt = select(Venue).where(Venue.is_active == True)
-    if city:
-        stmt = stmt.where(Venue.city.ilike(f"%{city}%"))
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    return await NoirService.list_venues(db, city)
 
 @router.get("/venues/{venue_id}", response_model=VenueOut)
 async def get_venue(venue_id: UUID, db: AsyncSession = Depends(get_db)):
     """Get a specific venue."""
-    stmt = select(Venue).where(Venue.id == venue_id)
-    result = await db.execute(stmt)
-    venue = result.scalars().first()
-    if not venue:
-        raise HTTPException(status_code=404, detail="Venue not found")
-    return venue
+    return await NoirService.get_venue(db, venue_id)
 
 @router.post("/venues", response_model=VenueOut, status_code=status.HTTP_201_CREATED)
 async def create_venue(
@@ -238,14 +130,4 @@ async def create_venue(
     user: CurrentUser = Depends(get_current_user)
 ):
     """Create a new venue. Requires 'owner' or 'admin' of the organization."""
-    roles = await get_org_roles(db, user.id)
-    if roles.get(str(payload.org_id)) not in ("owner", "admin"):
-        from app.services.rbac import get_platform_role
-        if await get_platform_role(db, user.id) != "admin":
-            raise HTTPException(status_code=403, detail="Not authorized for this organization")
-            
-    new_venue = Venue(**payload.model_dump())
-    db.add(new_venue)
-    await db.commit()
-    await db.refresh(new_venue)
-    return new_venue
+    return await NoirService.create_venue(db, user.id, payload)

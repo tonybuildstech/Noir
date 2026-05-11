@@ -62,29 +62,45 @@ def require_platform_roles(*allowed: str) -> Callable:
     return dep
 
 
+# ... existing code ...
 def require_org_roles(*allowed: str) -> Callable:
-    """Dependency factory: require any of the given org roles in ANY org.
-
-    For org-scoped endpoints that need to check a specific `org_id`, use
-    `get_org_roles()` directly inside the handler.
-    """
-    needed = {r.strip().lower() for r in allowed if r}
-
-    async def dep(
-        user: CurrentUser = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db),
-    ) -> CurrentUser:
-        if not settings.ENABLE_RBAC or not needed:
-            return user
-        roles = await get_org_roles(db, user.id)
-        if not any(r in needed for r in roles.values()):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient org role",
-            )
-        return user
-
+    # ... existing code ...
     return dep
+
+
+def require_org_authority(allowed_org_roles: Iterable[str] = ("owner", "admin")) -> Callable:
+    """
+    Dependency factory: require authority over a specific org_id.
+    
+    The org_id is expected to be part of the request payload (e.g. create_event)
+    or a path parameter. For now, since it varies, we provide a helper to be used
+    inside handlers OR we can make a dependency that looks into path/body.
+    
+    Actually, to keep it clean for the refactor, let's provide a functional
+    check that can be reused in service layer.
+    """
+    needed = {r.strip().lower() for r in allowed_org_roles if r}
+
+    async def check(db: AsyncSession, user_id: str, org_id: str):
+        if not settings.ENABLE_RBAC:
+            return
+            
+        # 1. Check org membership
+        roles = await get_org_roles(db, user_id)
+        if roles.get(str(org_id)) in needed:
+            return
+            
+        # 2. Fallback: platform admin
+        platform_role = await get_platform_role(db, user_id)
+        if platform_role == "admin":
+            return
+            
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have authority over this organization",
+        )
+
+    return check
 
 
 # Backwards-compatible alias so existing `Depends(require_roles(["admin"]))`
