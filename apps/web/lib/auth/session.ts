@@ -47,6 +47,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUserResponse | null
       avatar_url: null,
       city: null,
       phone: null,
+      onboarding_completed: false,
       claimed_at: null,
       created_at: u.created_at,
     },

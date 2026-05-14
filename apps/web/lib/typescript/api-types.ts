@@ -17,8 +17,28 @@ export interface ProfileOut {
   avatar_url?: string | null;
   city?: string | null;
   phone?: string | null;
+  onboarding_completed?: boolean;
   claimed_at?: string | null;
   created_at: string;
+}
+
+export interface TagOut {
+  id: string;
+  name: string;
+  slug: string;
+  category?: string | null;
+  is_active: boolean;
+}
+
+export interface TagListResponse {
+  items: TagOut[];
+  total: number;
+}
+
+export interface OnboardingRequest {
+  city: string;
+  date_of_birth: string; // YYYY-MM-DD
+  interest_tags: string[];
 }
 
 export interface ProfileList {

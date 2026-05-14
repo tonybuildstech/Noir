@@ -21,6 +21,7 @@ class ProfileOut(BaseModel):
     avatar_url: Optional[str] = None
     city: Optional[str] = None
     phone: Optional[str] = None
+    onboarding_completed: bool = False
     claimed_at: Optional[datetime] = None
     created_at: datetime
 

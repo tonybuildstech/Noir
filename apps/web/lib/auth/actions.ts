@@ -110,7 +110,7 @@ export async function registerAction(
   return {
     status: "success",
     message: "Račun kreiran. Dobrodošao u Noir!",
-    redirectTo: "/",
+    redirectTo: "/onboarding",
   };
 }
 

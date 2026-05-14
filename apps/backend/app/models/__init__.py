@@ -6,6 +6,7 @@ from app.models.profile import (
     OrganizationMember,
     UserPreference,
 )
+from app.models.tags import Tag
 from app.models.noir import (
     Organization,
     Venue,
@@ -24,6 +25,7 @@ __all__ = [
     "UserPlatformRole",
     "OrganizationMember",
     "UserPreference",
+    "Tag",
     "Organization",
     "Venue",
     "VenueLayout",

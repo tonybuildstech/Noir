@@ -5,7 +5,7 @@ Auth/session shapes live in app/schemas/auth.py.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 from uuid import UUID
 
@@ -29,6 +29,7 @@ class ProfileOut(BaseModel):
     avatar_url: Optional[str] = None
     city: Optional[str] = None
     phone: Optional[str] = None
+    onboarding_completed: bool = False
     app_metadata: dict = {}
     user_metadata: dict = {}
     claimed_at: Optional[datetime] = None
@@ -46,3 +47,10 @@ class ProfileList(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class OnboardingRequest(BaseModel):
+    """Payload posted by the onboarding wizard after registration."""
+    city: str = Field(..., min_length=1, max_length=100)
+    date_of_birth: date
+    interest_tags: List[str] = Field(default_factory=list)

@@ -32,6 +32,7 @@ class Profile(Base):
     date_of_birth = Column(Date, nullable=True)
     phone = Column(String(50), nullable=True)
     city = Column(String(100), nullable=True)
+    onboarding_completed = Column(Boolean, default=False, nullable=False, server_default="false")
     claimed_at = Column(DateTime(timezone=True), nullable=True)
     
     # Supabase metadata sync
