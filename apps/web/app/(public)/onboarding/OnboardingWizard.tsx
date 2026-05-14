@@ -142,7 +142,6 @@ export default function OnboardingWizard({
       if (result.status === "success") {
         toast.success("Dobrodošao u Noir!", "Profil je spreman.");
         router.replace("/");
-        router.refresh();
       } else {
         toast.error("Spremanje nije uspjelo", result.error);
       }

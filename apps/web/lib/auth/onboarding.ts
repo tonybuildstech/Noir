@@ -31,6 +31,9 @@ export async function fetchTags(
 export async function submitOnboardingAction(
   payload: OnboardingRequest,
 ): Promise<OnboardingResult> {
+  const start = Date.now();
+  console.log(`[OnboardingAction] Starting for city: ${payload.city}`);
+
   if (!payload.city?.trim()) {
     return { status: "error", error: "Unesi svoj grad." };
   }
@@ -41,12 +44,15 @@ export async function submitOnboardingAction(
   const supabase = await supabaseServer();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
+  console.log(`[OnboardingAction] Got session after ${Date.now() - start}ms`);
 
   if (!token) {
     return { status: "error", error: "Sesija je istekla. Prijavi se ponovno." };
   }
 
   try {
+    console.log(`[OnboardingAction] Calling backend API...`);
+    const fetchStart = Date.now();
     const res = await fetch(`${BACKEND_API_URL}/profiles/me/onboarding`, {
       method: "POST",
       headers: {
@@ -56,6 +62,7 @@ export async function submitOnboardingAction(
       body: JSON.stringify(payload),
       cache: "no-store",
     });
+    console.log(`[OnboardingAction] Backend responded in ${Date.now() - fetchStart}ms with status ${res.status}`);
 
     if (!res.ok) {
       const detail = await res.json().catch(() => null);
@@ -66,8 +73,10 @@ export async function submitOnboardingAction(
       return { status: "error", error: message };
     }
 
+    console.log(`[OnboardingAction] Success! Total time: ${Date.now() - start}ms`);
     return { status: "success" };
-  } catch {
+  } catch (err) {
+    console.error(`[OnboardingAction] Fetch error:`, err);
     return {
       status: "error",
       error: "Greška u komunikaciji s poslužiteljem.",

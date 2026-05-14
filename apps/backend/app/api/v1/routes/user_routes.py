@@ -5,7 +5,7 @@ Read + self-edit profile data. Identity management (email/password) lives
 in Supabase — we don't expose endpoints for it.
 """
 from math import ceil
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -56,6 +56,11 @@ async def update_my_profile(
     return ProfileOut.model_validate(profile)
 
 
+from sqlalchemy.orm import selectinload
+
+from app.core.logger import get_logger
+log = get_logger("jetapi.user")
+
 @router.post("/me/onboarding", response_model=ProfileOut)
 async def complete_onboarding(
     payload: OnboardingRequest,
@@ -69,16 +74,23 @@ async def complete_onboarding(
 
     Unknown tag slugs are silently dropped so callers can't poison the array.
     """
-    profile = (
-        await db.execute(select(Profile).where(Profile.id == user.id))
-    ).scalars().first()
+    log.info(f"Starting onboarding for user {user.id}")
+    # Fetch profile with preferences in one go
+    result = await db.execute(
+        select(Profile)
+        .where(Profile.id == user.id)
+        .options(selectinload(Profile.preferences))
+    )
+    profile = result.scalars().first()
+    
     if profile is None:
+        log.warning(f"Profile not found for user {user.id}")
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Profile not found")
 
-    # Filter interest_tags against the taxonomy — drop anything that isn't a
-    # known active tag slug.
+    # Filter interest_tags against the taxonomy
     valid_slugs: List[str] = []
     if payload.interest_tags:
+        log.info(f"Filtering {len(payload.interest_tags)} interest tags")
         rows = (
             await db.execute(
                 select(Tag.slug).where(
@@ -95,19 +107,19 @@ async def complete_onboarding(
     profile.onboarding_completed = True
 
     # Upsert user_preferences
-    prefs = (
-        await db.execute(
-            select(UserPreference).where(UserPreference.user_id == user.id)
-        )
-    ).scalars().first()
-    if prefs is None:
+    if profile.preferences:
+        log.info(f"Updating preferences for user {user.id}")
+        profile.preferences.interest_tags = valid_slugs
+    else:
+        log.info(f"Creating new preferences for user {user.id}")
         prefs = UserPreference(user_id=user.id, interest_tags=valid_slugs)
         db.add(prefs)
-    else:
-        prefs.interest_tags = valid_slugs
 
+    log.info(f"Committing onboarding for user {user.id}")
     await db.commit()
+    log.info(f"Refreshing profile for user {user.id}")
     await db.refresh(profile)
+    log.info(f"Onboarding complete for user {user.id}")
     return ProfileOut.model_validate(profile)
 
 

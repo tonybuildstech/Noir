@@ -133,13 +133,21 @@ async def get_current_profile(
     user_meta = user.raw_claims.get("user_metadata") or {}
     
     if profile:
-        # Sync metadata and email if they've changed
-        profile.app_metadata = app_meta
-        profile.user_metadata = user_meta
+        # Sync metadata and email only if they've changed to avoid unnecessary locks
+        changed = False
+        if profile.app_metadata != app_meta:
+            profile.app_metadata = app_meta
+            changed = True
+        if profile.user_metadata != user_meta:
+            profile.user_metadata = user_meta
+            changed = True
         if user.email and profile.email != user.email:
             profile.email = user.email
+            changed = True
         
-        await db.flush()
+        if changed:
+            await db.flush()
+            
         return profile
 
     # Auto-provision fallback

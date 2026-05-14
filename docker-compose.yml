@@ -18,7 +18,7 @@ services:
       # DATABASE_URL should be provided in apps/backend/.env
       - REDIS_URL=redis://redis:6379/0
       - FRONTEND_URL=http://localhost
-      - CORS_ORIGINS=http://localhost
+      - CORS_ORIGINS=http://localhost,http://127.0.0.1
     env_file:
       - apps/backend/.env
     tmpfs:
@@ -33,9 +33,10 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost/api
+        - NEXT_PUBLIC_API_URL=http://localhost/api/v1
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost/api
+      - NEXT_PUBLIC_API_URL=http://localhost/api/v1
+      - BACKEND_API_URL=http://backend:8000/api/v1
     env_file:
       - apps/web/.env
     depends_on:
