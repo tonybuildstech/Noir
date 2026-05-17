@@ -6,6 +6,7 @@ import SearchInput from "@/components/admin/SearchInput";
 import SelectFilter from "@/components/admin/SelectFilter";
 import Pagination from "@/components/admin/Pagination";
 import UserRoleMenu from "@/components/admin/UserRoleMenu";
+import UserActionsCell from "@/components/admin/UserActionsCell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -131,11 +132,14 @@ export default async function AdminUsersPage({
                       {new Date(u.created_at).toLocaleDateString("hr-HR")}
                     </TableCell>
                     <TableCell className="text-right">
-                      <UserRoleMenu
-                        userId={u.id}
-                        current={u.platform_role}
-                        userLabel={fullName(u)}
-                      />
+                      <div className="flex items-center justify-end gap-1">
+                        <UserActionsCell user={u} />
+                        <UserRoleMenu
+                          userId={u.id}
+                          current={u.platform_role}
+                          userLabel={fullName(u)}
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

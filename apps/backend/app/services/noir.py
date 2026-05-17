@@ -39,12 +39,16 @@ class NoirService:
             out_ev = EventDiscoveryOut.model_validate(event)
             if event.occurrences:
                 primary = sorted(event.occurrences, key=lambda x: x.start_time)[0]
-                out_ev.venue_name = primary.venue.name if primary.venue else None
+                out_ev.venue_name = primary.venue.name if primary.venue else event.location_name
                 out_ev.occurrence_date = primary.start_time
                 if primary.tiers:
                     out_ev.min_price = min(t.price for t in primary.tiers)
                 else:
-                    out_ev.min_price = Decimal("0.00") if event.is_free else None
+                    out_ev.min_price = Decimal("0.00") if event.is_free else event.ticket_price
+            else:
+                out_ev.venue_name = event.location_name
+                out_ev.occurrence_date = event.event_date
+                out_ev.min_price = Decimal("0.00") if event.is_free else event.ticket_price
             out_events.append(out_ev)
         return out_events
 

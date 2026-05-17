@@ -4,23 +4,30 @@ Read-mostly oversight queries that span every organization. Authority is
 enforced at the route layer — these functions assume the caller is already
 a platform admin.
 """
+from datetime import datetime
+from decimal import Decimal
 from math import ceil
 from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete as sql_delete, func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.models.noir import Event, EventOccurrence, Organization, Venue
+from app.core.supabase_admin import get_supabase_admin
+from app.models.audit import AuditLog
+from app.models.noir import Event, EventOccurrence, EventTier, OccurrencePackage, Organization, Ticket, Venue
 from app.models.profile import OrganizationMember, Profile, UserPlatformRole
 from app.schemas.admin import (
+    AdminEventCreate,
     AdminEventOut,
     AdminMembershipOut,
     AdminMetrics,
     AdminOrganizationDetail,
     AdminOrganizationOut,
     AdminOrgMemberOut,
+    AdminUpdateEvent,
+    AdminUpdateUser,
     AdminUserDetail,
     AdminUserOut,
     AdminVenueOut,
@@ -30,6 +37,35 @@ from app.schemas.admin import (
 )
 
 PLATFORM_ROLES = {"super_admin", "support", "finance_admin", "user"}
+
+
+def _json_safe(d: dict) -> dict:
+    """Convert datetime/Decimal to JSON-serializable types for AuditLog."""
+    result = {}
+    for k, v in d.items():
+        if isinstance(v, datetime):
+            result[k] = v.isoformat()
+        elif isinstance(v, Decimal):
+            result[k] = float(v)
+        elif isinstance(v, UUID):
+            result[k] = str(v)
+        else:
+            result[k] = v
+    return result
+
+
+async def _unique_slug(db, base: str) -> str:
+    """Dodaje -2, -3... dok slug nije jedinstven. Maks 100 varijanti."""
+    slug, i = base, 2
+    while (await db.execute(select(Event.id).where(Event.slug == slug))).scalar():
+        if i > 100:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                f"Ne mogu generirati jedinstven slug za '{base}'. Pokušaj drugi naziv.",
+            )
+        slug = f"{base}-{i}"
+        i += 1
+    return slug
 
 
 class AdminService:
@@ -462,11 +498,16 @@ class AdminService:
                     id=e.id,
                     name=e.name,
                     slug=e.slug,
+                    description=e.description,
+                    cover_image_url=e.cover_image_url,
                     status=e.status,
                     is_free=e.is_free,
                     organizer_org_id=e.organizer_org_id,
                     organizer_org_name=org_name,
                     occurrence_count=occ,
+                    event_date=e.event_date,
+                    location_name=e.location_name,
+                    ticket_price=e.ticket_price,
                     created_at=e.created_at,
                 )
                 for e, org_name, occ in rows
@@ -476,3 +517,185 @@ class AdminService:
             page_size=page_size,
             total_pages=ceil(total / page_size) if total else 1,
         )
+
+    @staticmethod
+    async def delete_event(db, event_id: UUID, actor_id: UUID) -> None:
+        event = (
+            await db.execute(select(Event).where(Event.id == event_id))
+        ).scalars().first()
+        if event is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Event nije pronađen")
+
+        occ_ids_stmt = select(EventOccurrence.id).where(EventOccurrence.event_id == event_id)
+        await db.execute(sql_delete(Ticket).where(Ticket.occurrence_id.in_(occ_ids_stmt)))
+        await db.execute(sql_delete(OccurrencePackage).where(OccurrencePackage.occurrence_id.in_(occ_ids_stmt)))
+        await db.execute(sql_delete(EventTier).where(EventTier.occurrence_id.in_(occ_ids_stmt)))
+        await db.execute(sql_delete(EventOccurrence).where(EventOccurrence.event_id == event_id))
+
+        db.add(AuditLog(
+            actor_id=actor_id,
+            action="delete_event",
+            resource_type="event",
+            resource_id=str(event_id),
+            old_value={"name": event.name, "slug": event.slug, "status": event.status},
+        ))
+        await db.delete(event)
+        await db.commit()
+
+    @staticmethod
+    async def update_event(
+        db, event_id: UUID, payload: AdminUpdateEvent, actor_id: UUID
+    ) -> AdminEventOut:
+        event = (
+            await db.execute(select(Event).where(Event.id == event_id))
+        ).scalars().first()
+        if event is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Event nije pronađen")
+
+        old_value = _json_safe({f: getattr(event, f) for f in payload.model_fields})
+
+        for field, value in payload.model_dump(exclude_unset=True).items():
+            setattr(event, field, value)
+
+        db.add(AuditLog(
+            actor_id=actor_id,
+            action="update_event",
+            resource_type="event",
+            resource_id=str(event_id),
+            old_value=old_value,
+            new_value=_json_safe(payload.model_dump(exclude_unset=True)),
+        ))
+        await db.commit()
+        await db.refresh(event)
+
+        occ_subquery = (
+            select(func.count(EventOccurrence.id))
+            .where(EventOccurrence.event_id == event_id)
+            .scalar_subquery()
+        )
+        row = (
+            await db.execute(
+                select(Organization.name, occ_subquery.label("occ_count"))
+                .where(Organization.id == event.organizer_org_id)
+            )
+        ).first()
+        org_name = row.name if row else None
+        occ_count = row.occ_count if row else 0
+
+        return AdminEventOut(
+            id=event.id,
+            name=event.name,
+            slug=event.slug,
+            description=event.description,
+            cover_image_url=event.cover_image_url,
+            status=event.status,
+            is_free=event.is_free,
+            organizer_org_id=event.organizer_org_id,
+            organizer_org_name=org_name,
+            occurrence_count=occ_count,
+            event_date=event.event_date,
+            location_name=event.location_name,
+            ticket_price=event.ticket_price,
+            created_at=event.created_at,
+        )
+
+    @staticmethod
+    async def create_event(db, payload: AdminEventCreate, actor_id: UUID) -> AdminEventOut:
+        org = (
+            await db.execute(
+                select(Organization).where(Organization.id == payload.organizer_org_id)
+            )
+        ).scalars().first()
+        if org is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Organizacija nije pronađena")
+
+        data = payload.model_dump()
+        data["slug"] = await _unique_slug(db, payload.slug)
+
+        event = Event(**data)
+        db.add(event)
+        db.add(AuditLog(
+            actor_id=actor_id,
+            action="create_event",
+            resource_type="event",
+            new_value={"name": event.name, "organizer_org_id": str(payload.organizer_org_id)},
+        ))
+        await db.commit()
+        await db.refresh(event)
+
+        return AdminEventOut(
+            id=event.id, name=event.name, slug=event.slug,
+            description=event.description, cover_image_url=event.cover_image_url,
+            status=event.status, is_free=event.is_free,
+            organizer_org_id=event.organizer_org_id, organizer_org_name=org.name,
+            occurrence_count=0, event_date=event.event_date,
+            location_name=event.location_name, ticket_price=event.ticket_price,
+            created_at=event.created_at,
+        )
+
+    @staticmethod
+    async def update_user(
+        db, user_id: UUID, payload: AdminUpdateUser, actor_id: UUID
+    ) -> AdminUserDetail:
+        profile = (
+            await db.execute(select(Profile).where(Profile.id == user_id))
+        ).scalars().first()
+        if profile is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Korisnik nije pronađen")
+
+        old_value = _json_safe({f: getattr(profile, f) for f in payload.model_fields})
+
+        for field, value in payload.model_dump(exclude_unset=True).items():
+            setattr(profile, field, value)
+
+        db.add(AuditLog(
+            actor_id=actor_id,
+            action="update_user",
+            resource_type="user",
+            resource_id=str(user_id),
+            old_value=old_value,
+            new_value=_json_safe(payload.model_dump(exclude_unset=True)),
+        ))
+        await db.commit()
+        return await AdminService.get_user(db, user_id)
+
+    @staticmethod
+    async def delete_user(db, user_id: UUID, actor_id: UUID) -> None:
+        if actor_id == user_id:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Ne možeš obrisati vlastiti račun.",
+            )
+
+        profile = (
+            await db.execute(select(Profile).where(Profile.id == user_id))
+        ).scalars().first()
+        if profile is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Korisnik nije pronađen")
+
+        old_value = {
+            "email": profile.email,
+            "first_name": profile.first_name,
+            "last_name": profile.last_name,
+        }
+
+        supabase_admin = await get_supabase_admin()
+        try:
+            await supabase_admin.auth.admin.delete_user(str(user_id))
+        except Exception as e:
+            msg = str(e)
+            if "404" not in msg and "not found" not in msg.lower():
+                raise HTTPException(
+                    status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    f"Supabase Auth brisanje nije uspjelo: {msg}",
+                )
+
+        await db.delete(profile)
+        db.add(AuditLog(
+            actor_id=actor_id,
+            action="delete_user",
+            resource_type="user",
+            resource_id=str(user_id),
+            old_value=old_value,
+        ))
+        await db.commit()

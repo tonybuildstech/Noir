@@ -53,3 +53,6 @@ pytest-cov>=6.0.0
 psycopg2-binary>=2.9.10  # Sync PostgreSQL (for Alembic and general SQL execution)
 # mysql-connector-python>=9.1.0  # Sync MySQL
 aiomysql>=0.2.0  # Async MySQL (remove if not using MySQL)
+
+# Supabase Admin SDK (async klijent za Auth admin operacije — brisanje korisnika)
+supabase>=2.0.0

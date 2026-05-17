@@ -28,3 +28,15 @@ Thumbs.db
 # IDE
 .vscode
 .idea
+
+#pregled_sustava
+.pregled
+.todo
+.arhitektura
+.exec
+.moj_posao
+.design_idea
+.plan_izvedbe
+.filter_design
+.CRUD_Design
+.CRUD_Implementation_Log
