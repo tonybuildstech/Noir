@@ -5,7 +5,8 @@ that span all organizations. Authority is checked at the route layer
 (`require_platform_roles`).
 """
 from datetime import datetime
-from typing import Generic, List, Optional, TypeVar
+from decimal import Decimal
+from typing import Generic, List, Literal, Optional, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -135,11 +136,53 @@ class AdminEventOut(BaseModel):
     id: UUID
     name: str
     slug: str
+    description: Optional[str] = None
+    cover_image_url: Optional[str] = None
     status: str
     is_free: bool
     organizer_org_id: UUID
     organizer_org_name: Optional[str] = None
     occurrence_count: int = 0
+    event_date: Optional[datetime] = None
+    location_name: Optional[str] = None
+    ticket_price: Optional[Decimal] = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AdminUpdateEvent(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    status: Optional[Literal[
+        "draft", "pending_venue", "venue_confirmed",
+        "published", "cancelled", "completed"
+    ]] = None
+    is_free: Optional[bool] = None
+    event_date: Optional[datetime] = None
+    location_name: Optional[str] = None
+    ticket_price: Optional[Decimal] = None
+
+
+class AdminEventCreate(BaseModel):
+    name: str
+    slug: str
+    description: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    is_free: bool = False
+    status: Literal[
+        "draft", "pending_venue", "venue_confirmed",
+        "published", "cancelled", "completed"
+    ] = "draft"
+    organizer_org_id: UUID
+    event_date: Optional[datetime] = None
+    location_name: Optional[str] = None
+    ticket_price: Optional[Decimal] = None
+
+
+class AdminUpdateUser(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    city: Optional[str] = None
+    phone: Optional[str] = None

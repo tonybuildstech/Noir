@@ -95,10 +95,54 @@ export interface AdminEvent {
   id: string;
   name: string;
   slug: string;
-  status: string;
+  description: string | null;
+  cover_image_url: string | null;
+  status: EventStatus;
   is_free: boolean;
   organizer_org_id: string;
   organizer_org_name: string | null;
   occurrence_count: number;
+  event_date: string | null;
+  location_name: string | null;
+  ticket_price: number | null;
   created_at: string;
+}
+
+export type EventStatus =
+  | "draft"
+  | "pending_venue"
+  | "venue_confirmed"
+  | "published"
+  | "cancelled"
+  | "completed";
+
+export interface AdminEventCreatePayload {
+  name: string;
+  slug: string;
+  description?: string;
+  cover_image_url?: string;
+  is_free: boolean;
+  status: EventStatus;
+  organizer_org_id: string;
+  event_date?: string;
+  location_name?: string;
+  ticket_price?: number;
+}
+
+export interface AdminEventUpdatePayload {
+  name?: string;
+  description?: string;
+  cover_image_url?: string;
+  status?: EventStatus;
+  is_free?: boolean;
+  event_date?: string;
+  location_name?: string;
+  ticket_price?: number;
+}
+
+export interface AdminUserUpdatePayload {
+  first_name?: string;
+  last_name?: string;
+  city?: string;
+  phone?: string;
 }

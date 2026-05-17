@@ -10,16 +10,19 @@ Kept separate from `admin_routes.py` (cache/jobs/system ops) — same
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import CurrentUser
 from app.schemas.admin import (
+    AdminEventCreate,
     AdminEventOut,
     AdminMetrics,
     AdminOrganizationDetail,
     AdminOrganizationOut,
+    AdminUpdateEvent,
+    AdminUpdateUser,
     AdminUserDetail,
     AdminUserOut,
     AdminVenueOut,
@@ -153,3 +156,71 @@ async def list_events(
     _: CurrentUser = Depends(read_access),
 ) -> Page[AdminEventOut]:
     return await AdminService.list_events(db, page, page_size, search, status)
+
+
+@router.post(
+    "/events",
+    response_model=AdminEventOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create event on behalf of an organization (admin)",
+)
+async def create_event(
+    payload: AdminEventCreate,
+    db: AsyncSession = Depends(get_db),
+    actor: CurrentUser = Depends(write_access),
+) -> AdminEventOut:
+    return await AdminService.create_event(db, payload, actor.id)
+
+
+@router.patch(
+    "/events/{event_id}",
+    response_model=AdminEventOut,
+    summary="Edit event metadata (admin override)",
+)
+async def update_event(
+    event_id: UUID,
+    payload: AdminUpdateEvent,
+    db: AsyncSession = Depends(get_db),
+    actor: CurrentUser = Depends(write_access),
+) -> AdminEventOut:
+    return await AdminService.update_event(db, event_id, payload, actor.id)
+
+
+@router.delete(
+    "/events/{event_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete an event (requires zero occurrences)",
+)
+async def delete_event(
+    event_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    actor: CurrentUser = Depends(write_access),
+) -> None:
+    await AdminService.delete_event(db, event_id, actor.id)
+
+
+@router.patch(
+    "/users/{user_id}",
+    response_model=AdminUserDetail,
+    summary="Edit user profile (admin)",
+)
+async def update_user(
+    user_id: UUID,
+    payload: AdminUpdateUser,
+    db: AsyncSession = Depends(get_db),
+    actor: CurrentUser = Depends(write_access),
+) -> AdminUserDetail:
+    return await AdminService.update_user(db, user_id, payload, actor.id)
+
+
+@router.delete(
+    "/users/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Permanently delete a user and their Supabase Auth account",
+)
+async def delete_user(
+    user_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    actor: CurrentUser = Depends(write_access),
+) -> None:
+    await AdminService.delete_user(db, user_id, actor.id)

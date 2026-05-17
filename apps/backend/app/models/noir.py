@@ -106,6 +106,10 @@ class Event(Base):
     is_free = Column(Boolean, default=False)
     status = Column(ENUM('draft', 'pending_venue', 'venue_confirmed', 'published', 'cancelled', 'completed', name='event_status'), nullable=False, default='draft')
 
+    event_date = Column(DateTime(timezone=True), nullable=True)
+    location_name = Column(Text, nullable=True)
+    ticket_price = Column(DECIMAL(10, 2), nullable=True)
+
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

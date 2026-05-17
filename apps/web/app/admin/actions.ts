@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import { adminApi, AdminApiError } from "@/lib/admin/api";
-import type { PlatformRole } from "@/lib/admin/types";
+import type {
+  PlatformRole,
+  AdminEventUpdatePayload,
+  AdminEventCreatePayload,
+  AdminUserUpdatePayload,
+} from "@/lib/admin/types";
 
 export type ActionResult =
   | { ok: true }
@@ -29,6 +34,67 @@ export async function updateUserRoleAction(
     });
     revalidatePath("/admin/korisnici");
     revalidatePath(`/admin/korisnici/${userId}`);
+    return { ok: true };
+  } catch (e) {
+    return toError(e);
+  }
+}
+
+export async function deleteEventAction(eventId: string): Promise<ActionResult> {
+  try {
+    await adminApi.delete(`/admin/events/${eventId}`);
+    revalidatePath("/admin/eventi");
+    revalidatePath("/eventi");
+    return { ok: true };
+  } catch (e) {
+    return toError(e);
+  }
+}
+
+export async function updateEventAction(
+  eventId: string,
+  patch: AdminEventUpdatePayload,
+): Promise<ActionResult> {
+  try {
+    await adminApi.patch(`/admin/events/${eventId}`, patch);
+    revalidatePath("/admin/eventi");
+    revalidatePath("/eventi");
+    return { ok: true };
+  } catch (e) {
+    return toError(e);
+  }
+}
+
+export async function createEventAction(
+  payload: AdminEventCreatePayload,
+): Promise<ActionResult> {
+  try {
+    await adminApi.post("/admin/events", payload);
+    revalidatePath("/admin/eventi");
+    revalidatePath("/eventi");
+    return { ok: true };
+  } catch (e) {
+    return toError(e);
+  }
+}
+
+export async function deleteUserAction(userId: string): Promise<ActionResult> {
+  try {
+    await adminApi.delete(`/admin/users/${userId}`);
+    revalidatePath("/admin/korisnici");
+    return { ok: true };
+  } catch (e) {
+    return toError(e);
+  }
+}
+
+export async function updateUserAction(
+  userId: string,
+  patch: AdminUserUpdatePayload,
+): Promise<ActionResult> {
+  try {
+    await adminApi.patch(`/admin/users/${userId}`, patch);
+    revalidatePath("/admin/korisnici");
     return { ok: true };
   } catch (e) {
     return toError(e);

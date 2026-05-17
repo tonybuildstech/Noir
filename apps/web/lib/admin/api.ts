@@ -34,7 +34,8 @@ async function adminFetch<T>(
     let detail = `Zahtjev nije uspio (${res.status}).`;
     try {
       const body = await res.json();
-      if (typeof body?.detail === "string") detail = body.detail;
+      if (typeof body?.error?.message === "string") detail = body.error.message;
+      else if (typeof body?.detail === "string") detail = body.detail;
     } catch {
       // keep the default message
     }
@@ -64,8 +65,12 @@ function qs(params: Record<string, string | number | boolean | undefined>) {
 }
 
 export const adminApi = {
-  get: <T>(path: string) => adminFetch<T>(path),
-  patch: <T>(path: string, body: unknown) =>
-    adminFetch<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
+  get:    <T>(path: string) => adminFetch<T>(path),
+  post:   <T>(path: string, body: unknown) =>
+            adminFetch<T>(path, { method: "POST", body: JSON.stringify(body) }),
+  patch:  <T>(path: string, body: unknown) =>
+            adminFetch<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
+  delete: <T = void>(path: string) =>
+            adminFetch<T>(path, { method: "DELETE" }),
   qs,
 };
