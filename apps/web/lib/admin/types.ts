@@ -40,6 +40,10 @@ export interface AdminUser {
   onboarding_completed: boolean;
   platform_role: PlatformRole;
   is_ghost: boolean;
+  organization_name: string | null;
+  tax_id: string | null;
+  role_request: string[];
+  verification_status: string;
   created_at: string;
 }
 

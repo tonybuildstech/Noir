@@ -34,6 +34,24 @@ class Profile(Base):
     city = Column(String(100), nullable=True)
     onboarding_completed = Column(Boolean, default=False, nullable=False, server_default="false")
     claimed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Role requests and verification
+    organization_name = Column(String(255), nullable=True)
+    tax_id = Column(String(100), nullable=True)  # OIB
+    role_request = Column(ARRAY(String), nullable=True, default=[])  # ['organizer', 'venue_owner']
+    verification_status = Column(
+        Enum(
+            "none",
+            "pending",
+            "approved",
+            "rejected",
+            name="verification_status",
+            create_type=True,
+        ),
+        nullable=False,
+        default="none",
+        server_default="none",
+    )
     
     # Supabase metadata sync
     app_metadata = Column(JSONB, nullable=True, default={})

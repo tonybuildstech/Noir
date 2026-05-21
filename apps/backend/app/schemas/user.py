@@ -30,6 +30,10 @@ class ProfileOut(BaseModel):
     city: Optional[str] = None
     phone: Optional[str] = None
     onboarding_completed: bool = False
+    organization_name: Optional[str] = None
+    tax_id: Optional[str] = None
+    role_request: List[str] = []
+    verification_status: str = "none"
     app_metadata: dict = {}
     user_metadata: dict = {}
     claimed_at: Optional[datetime] = None
@@ -54,3 +58,12 @@ class OnboardingRequest(BaseModel):
     city: str = Field(..., min_length=1, max_length=100)
     date_of_birth: date
     interest_tags: List[str] = Field(default_factory=list)
+    role_request: List[str] = Field(default_factory=list)
+    organization_name: Optional[str] = Field(None, max_length=255)
+    tax_id: Optional[str] = Field(None, max_length=100)
+    organization_contact: Optional[str] = Field(None, max_length=255) # Email or Phone
+    
+    # Optional first venue
+    venue_name: Optional[str] = Field(None, max_length=255)
+    venue_address: Optional[str] = Field(None, max_length=255)
+    venue_type: Optional[str] = Field(None)

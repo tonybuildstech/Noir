@@ -1,6 +1,6 @@
 // Auto-generated TypeScript types from JetApi schemas
 // Do not edit manually - regenerate with: python scripts/generate_types.py --typescript
-// Generated at: 2026-05-11T12:08:44.622890
+// Generated at: 2026-05-19T13:09:17.719264
 
 export interface ProfileUpdate {
   first_name?: string | null;
@@ -22,31 +22,21 @@ export interface ProfileOut {
   created_at: string;
 }
 
-export interface TagOut {
-  id: string;
-  name: string;
-  slug: string;
-  category?: string | null;
-  is_active: boolean;
-}
-
-export interface TagListResponse {
-  items: TagOut[];
-  total: number;
-}
-
-export interface OnboardingRequest {
-  city: string;
-  date_of_birth: string; // YYYY-MM-DD
-  interest_tags: string[];
-}
-
 export interface ProfileList {
   items: ProfileOut[];
   total: number;
   page: number;
   page_size: number;
   total_pages: number;
+}
+
+export interface OnboardingRequest {
+  city: string;
+  date_of_birth: string;
+  interest_tags?: string[];
+  role_request?: string[];
+  organization_name?: string | null;
+  tax_id?: string | null;
 }
 
 export interface OrgMembershipOut {
@@ -87,7 +77,6 @@ export interface Viewer {
   firstName?: string | null;
   lastName?: string | null;
   avatarUrl?: string | null;
-  platformRole?: string | null;
 }
 
 export interface AuthTokenResponse {
@@ -267,6 +256,195 @@ export interface EventOccurrenceOut {
   status: string;
   sold_count: number;
   total_capacity: number;
+}
+
+export interface TagOut {
+  id: string;
+  name: string;
+  slug: string;
+  category?: string | null;
+  is_active: boolean;
+}
+
+export interface TagListResponse {
+  items: TagOut[];
+  total: number;
+}
+
+export interface Page {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface AdminMetrics {
+  users: number;
+  super_admins: number;
+  organizations: number;
+  organizations_unverified: number;
+  venues: number;
+  events: number;
+  events_published: number;
+  occurrences: number;
+}
+
+export interface AdminMembershipOut {
+  org_id: string;
+  org_name?: string | null;
+  role: string;
+  is_active: boolean;
+}
+
+export interface AdminUserOut {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+  city?: string | null;
+  phone?: string | null;
+  avatar_url?: string | null;
+  onboarding_completed?: boolean;
+  platform_role?: string;
+  is_ghost?: boolean;
+  organization_name?: string | null;
+  tax_id?: string | null;
+  role_request?: string[];
+  verification_status?: string;
+  created_at: string;
+}
+
+export interface AdminUserDetail {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+  city?: string | null;
+  phone?: string | null;
+  avatar_url?: string | null;
+  onboarding_completed?: boolean;
+  platform_role?: string;
+  is_ghost?: boolean;
+  organization_name?: string | null;
+  tax_id?: string | null;
+  role_request?: string[];
+  verification_status?: string;
+  created_at: string;
+  memberships?: AdminMembershipOut[];
+  last_login?: string | null;
+}
+
+export interface UpdateUserRole {
+  platform_role: string;
+}
+
+export interface AdminOrganizationOut {
+  id: string;
+  name: string;
+  slug: string;
+  city?: string | null;
+  contact_email?: string | null;
+  can_organize: boolean;
+  can_own_venues: boolean;
+  is_verified: boolean;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AdminOrgMemberOut {
+  user_id: string;
+  full_name?: string | null;
+  email?: string | null;
+  role: string;
+  is_active: boolean;
+}
+
+export interface AdminVenueOut {
+  id: string;
+  org_id: string;
+  org_name?: string | null;
+  name: string;
+  slug: string;
+  city: string;
+  venue_type: string;
+  visibility: string;
+  total_capacity?: number | null;
+  is_active: boolean;
+}
+
+export interface AdminOrganizationDetail {
+  id: string;
+  name: string;
+  slug: string;
+  city?: string | null;
+  contact_email?: string | null;
+  can_organize: boolean;
+  can_own_venues: boolean;
+  is_verified: boolean;
+  is_active: boolean;
+  created_at: string;
+  description?: string | null;
+  website?: string | null;
+  contact_phone?: string | null;
+  address?: string | null;
+  members?: AdminOrgMemberOut[];
+  venues?: AdminVenueOut[];
+}
+
+export interface UpdateOrganization {
+  is_verified?: boolean | null;
+  is_active?: boolean | null;
+  can_organize?: boolean | null;
+  can_own_venues?: boolean | null;
+}
+
+export interface AdminEventOut {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  cover_image_url?: string | null;
+  status: string;
+  is_free: boolean;
+  organizer_org_id: string;
+  organizer_org_name?: string | null;
+  occurrence_count?: number;
+  event_date?: string | null;
+  location_name?: string | null;
+  ticket_price?: number | null;
+  created_at: string;
+}
+
+export interface AdminUpdateEvent {
+  name?: string | null;
+  description?: string | null;
+  cover_image_url?: string | null;
+  status?: Literal | null;
+  is_free?: boolean | null;
+  event_date?: string | null;
+  location_name?: string | null;
+  ticket_price?: number | null;
+}
+
+export interface AdminEventCreate {
+  name: string;
+  slug: string;
+  description?: string | null;
+  cover_image_url?: string | null;
+  is_free?: boolean;
+  status?: Literal;
+  organizer_org_id: string;
+  event_date?: string | null;
+  location_name?: string | null;
+  ticket_price?: number | null;
+}
+
+export interface AdminUpdateUser {
+  first_name?: string | null;
+  last_name?: string | null;
+  city?: string | null;
+  phone?: string | null;
 }
 
 // API Response wrapper types

@@ -220,6 +220,13 @@ export default function PrijavaPage() {
                     </>
                   )}
                 </button>
+
+                <Link
+                  href="/prijava/organizator"
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-border bg-surface-white px-7 py-3 text-sm font-semibold text-primary transition-all hover:border-secondary hover:text-secondary active:scale-[0.97]"
+                >
+                  Prijavi se kao organizator
+                </Link>
               </form>
             </div>
 

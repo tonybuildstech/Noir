@@ -9,6 +9,7 @@ export async function loginAction(
 ): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const redirectTo = String(formData.get("redirectTo") ?? "/eventi");
 
   if (!email || !password) {
     return { status: "error", error: "Unesi email i lozinku.", code: "missing_fields" };
@@ -37,7 +38,7 @@ export async function loginAction(
   return {
     status: "success",
     message: "Prijava uspješna. Dobrodošao natrag!",
-    redirectTo: "/eventi",
+    redirectTo,
   };
 }
 
@@ -51,6 +52,7 @@ export async function registerAction(
   const password = String(formData.get("password") ?? "");
   const passwordConfirm = String(formData.get("password_confirm") ?? "");
   const acceptTerms = formData.get("acceptTerms") === "on";
+  const redirectTo = String(formData.get("redirectTo") ?? "/onboarding");
 
   if (!firstName) return { status: "error", error: "Unesi svoje ime.", code: "missing_firstName" };
   if (!lastName) return { status: "error", error: "Unesi svoje prezime.", code: "missing_lastName" };
@@ -110,7 +112,7 @@ export async function registerAction(
   return {
     status: "success",
     message: "Račun kreiran. Dobrodošao u Noir!",
-    redirectTo: "/onboarding",
+    redirectTo,
   };
 }
 

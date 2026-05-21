@@ -64,14 +64,14 @@ def discover_schemas() -> Dict[str, type]:
     schemas = {}
     
     # Import all schema modules
-    from app.schemas import user, auth, noir
+    from app.schemas import user, auth, noir, tags
     try:
-        from app.schemas import role, permission
+        from app.schemas import role, permission, admin
     except ImportError:
         pass
     
     # Collect all BaseModel subclasses
-    for module in [user, auth, noir]:
+    for module in [user, auth, noir, tags, admin]:
         for name, obj in vars(module).items():
             if isinstance(obj, type) and issubclass(obj, BaseModel) and obj is not BaseModel:
                 schemas[name] = obj

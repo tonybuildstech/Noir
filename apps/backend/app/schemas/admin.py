@@ -57,6 +57,10 @@ class AdminUserOut(BaseModel):
     onboarding_completed: bool = False
     platform_role: str = "user"
     is_ghost: bool = False
+    organization_name: Optional[str] = None
+    tax_id: Optional[str] = None
+    role_request: List[str] = []
+    verification_status: str = "none"
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

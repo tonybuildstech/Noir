@@ -153,6 +153,10 @@ class AdminService:
                 onboarding_completed=p.onboarding_completed,
                 platform_role=role_value or "user",
                 is_ghost=p.claimed_at is None,
+                organization_name=p.organization_name,
+                tax_id=p.tax_id,
+                role_request=p.role_request,
+                verification_status=p.verification_status,
                 created_at=p.created_at,
             )
             for p, role_value in rows
@@ -200,6 +204,10 @@ class AdminService:
             onboarding_completed=profile.onboarding_completed,
             platform_role=role_value or "user",
             is_ghost=profile.claimed_at is None,
+            organization_name=profile.organization_name,
+            tax_id=profile.tax_id,
+            role_request=profile.role_request,
+            verification_status=profile.verification_status,
             created_at=profile.created_at,
             last_login=profile.last_login,
             memberships=[

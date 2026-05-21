@@ -387,6 +387,13 @@ export default function RegistracijaPage() {
                     </>
                   )}
                 </button>
+
+                <Link
+                  href="/registracija/organizator"
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-border bg-surface-white px-7 py-3 text-sm font-semibold text-secondary transition-all hover:border-primary hover:text-primary active:scale-[0.97]"
+                >
+                  Postani organizator / vlasnik prostora
+                </Link>
               </form>
             </div>
 
